@@ -5,43 +5,51 @@
  * 执行后请删除此文件
  */
 
-require_once __DIR__ . '/../src/Config/database.php';
+// 尝试两种目录结构
+$cfgFile = __DIR__ . '/src/Config/database.php';
+if (!file_exists($cfgFile)) {
+    $cfgFile = __DIR__ . '/../src/Config/database.php';
+}
+if (!file_exists($cfgFile)) {
+    die('Cannot find src/Config/database.php. Please check directory structure.');
+}
+require_once $cfgFile;
 
 $db = Database::getInstance();
 
-// 获取所有歌曲
-$stmt = $db->query('SELECT id, cover_path, file_path FROM songs');
+$stmt = $db->query('SELECT id, title, cover_path, file_path FROM songs');
 $songs = $stmt->fetchAll();
 
 $fixed = 0;
 foreach ($songs as $song) {
     $coverPath = $song['cover_path'];
-    $filePath = $song['file_path'];
-    $changed = false;
+    $filePath  = $song['file_path'];
+    $changed   = false;
 
-    // 修复封面路径
-    if (strpos($coverPath, '/www/') === 0 || strpos($coverPath, 'C:/') === 0 || strpos($coverPath, 'D:/') === 0) {
-        if (preg_match('#/uploads/covers/(.+)$#', $coverPath, $m)) {
-            $coverPath = '/uploads/covers/' . $m[1];
-        } else {
-            $coverPath = '/assets/images/default-cover.svg';
+    // 修复封面路径：提取 /uploads/covers/xxx 部分
+    if (preg_match('#(/uploads/covers/[^/]+)$#', $coverPath, $m)) {
+        if ($coverPath !== $m[1]) {
+            $coverPath = $m[1];
+            $changed = true;
         }
+    } elseif (strpos($coverPath, '/www/') === 0 || preg_match('#^[A-Z]:/#', $coverPath)) {
+        $coverPath = '/assets/images/default-cover.svg';
         $changed = true;
     }
 
-    // 修复音频路径
-    if (strpos($filePath, '/www/') === 0 || strpos($filePath, 'C:/') === 0 || strpos($filePath, 'D:/') === 0) {
-        if (preg_match('#/uploads/music/(.+)$#', $filePath, $m)) {
-            $filePath = '/uploads/music/' . $m[1];
+    // 修复音频路径：提取 /uploads/music/xxx 部分
+    if (preg_match('#(/uploads/music/[^/]+)$#', $filePath, $m)) {
+        if ($filePath !== $m[1]) {
+            $filePath = $m[1];
+            $changed = true;
         }
-        $changed = true;
     }
 
     if ($changed) {
         $stmt = $db->prepare('UPDATE songs SET cover_path = ?, file_path = ? WHERE id = ?');
         $stmt->execute([$coverPath, $filePath, $song['id']]);
         $fixed++;
-        echo "Fixed song #{$song['id']}: cover={$coverPath}, file={$filePath}<br>";
+        echo "Fixed #{$song['id']}: {$song['title']} → cover={$coverPath}, file={$filePath}<br>";
     }
 }
 
