@@ -5,7 +5,7 @@
  * 执行后请删除此文件
  */
 
-require_once __DIR__ . '/src/Config/database.php';
+require_once __DIR__ . '/../src/Config/database.php';
 
 $db = Database::getInstance();
 
