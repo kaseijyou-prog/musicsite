@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>登录 - MusicSite</title>
+    <link rel="stylesheet" href="/assets/css/app.css?v=6">
+</head>
+<body>
+    <div id="app">
+        <div class="login-page">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="#6c5ce7" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 12c2.5 0 4.5-2 4.5-4.5S14.5 3 12 3 7.5 5 7.5 7.5 9.5 12 12 12z"/>
+                    <path d="M20 21c0-3.3-3.6-6-8-6s-8 2.7-8 6"/>
+                </svg>
+            </div>
+            <h1 class="login-title">MusicSite</h1>
+            <p class="login-subtitle">登录后即可使用全部功能</p>
+
+            <div class="modal-header">
+                <button class="modal-tab active" data-auth="login">登录</button>
+                <button class="modal-tab" data-auth="register">注册</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="用户名" required minlength="2" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="密码" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary">登 录</button>
+            </form>
+
+            <form id="registerForm" class="auth-form hidden">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="用户名" required minlength="2" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <input type="text" name="nickname" placeholder="昵称（可选）">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="密码" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary">注 册</button>
+            </form>
+        </div>
+
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script>
+    (function(){
+      var API_BASE="/api";
+      function showToast(msg){var t=document.getElementById("toast");if(!t)return;t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show")},2500)}
+      function api(p,o){o=o||{};return fetch(API_BASE+p,{method:o.method||"GET",headers:{"Content-Type":"application/json"},body:o.body||null}).then(function(r){return r.json()})}
+      function onLoginSuccess(res){localStorage.setItem("token",res.data.token);window.location.replace("/")}
+      var lf=document.getElementById("loginForm");
+      if(lf)lf.addEventListener("submit",function(e){
+        e.preventDefault();
+        var f=e.target,u=f.username.value.trim(),pw=f.password.value;
+        if(!u||!pw){showToast("请填写用户名和密码");return}
+        api("/auth/login",{method:"POST",body:JSON.stringify({username:u,password:pw})}).then(function(r){
+          if(r.code===0){showToast("登录成功");setTimeout(function(){onLoginSuccess(r)},500)}
+          else{showToast(r.message||"登录失败")}
+        }).catch(function(){showToast("网络错误")});
+      });
+      var rf=document.getElementById("registerForm");
+      if(rf)rf.addEventListener("submit",function(e){
+        e.preventDefault();
+        var f=e.target,u=f.username.value.trim(),n=f.nickname.value.trim(),pw=f.password.value;
+        if(!u||!pw){showToast("请填写用户名和密码");return}
+        if(pw.length<6){showToast("密码长度不能少于6位");return}
+        api("/auth/register",{method:"POST",body:JSON.stringify({username:u,nickname:n,password:pw})}).then(function(r){
+          if(r.code===0){showToast("注册成功");setTimeout(function(){onLoginSuccess(r)},800)}
+          else{showToast(r.message||"注册失败")}
+        }).catch(function(){showToast("网络错误")});
+      });
+      var tabs=document.querySelectorAll(".modal-tab");
+      for(var i=0;i<tabs.length;i++)tabs[i].addEventListener("click",function(){
+        for(var j=0;j<tabs.length;j++)tabs[j].classList.remove("active");
+        this.classList.add("active");
+        var il=this.dataset.auth==="login";
+        document.getElementById("loginForm").classList.toggle("hidden",!il);
+        document.getElementById("registerForm").classList.toggle("hidden",il);
+      });
+      var tk=localStorage.getItem("token");
+      if(tk)api("/auth/me").then(function(r){if(r.code===0)window.location.replace("/")});
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+# 临时文件
+*.log
+*.tmp
+*.bak
+*.txt
+
+# 测试/调试脚本
+test_*.js
+debug_*.js
+build-*.js
+check_*.js
+fix_*.js
+write_*.js
+verify.js
+run_tests.js
+final_test.js
+quick_check.js
+fetchAll()
+
+# PowerShell 脚本
+*.ps1
+
+# Python 脚本
+*.py
+
+# 测试目录
+audio/
+screenshots/
+.claude/
+
+# 旧 Node.js 服务器（已迁移到 PHP）
+server.js
+_api.js
+_p1.js
+
+# 旧 JSON 数据库（已迁移到 MySQL）
+database/musicsite.db
+database/musicsite.db.json
+
+# 占位文件
+css_check.txt
+css_output.txt
+css_debug.txt
+css_hex.txt
+debug_lines.txt
+app_match.txt
+page_match.txt
+pw_result.txt
+reset_result.txt
+test_result.txt
