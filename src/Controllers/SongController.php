@@ -105,7 +105,7 @@ class SongController
         $user = AuthMiddleware::check();
 
         $db = Database::getInstance();
-        $stmt = $db->prepare('SELECT id FROM favorites WHERE user_id = ? AND song_id = ?');
+        $stmt = $db->prepare('SELECT user_id FROM favorites WHERE user_id = ? AND song_id = ?');
         $stmt->execute([$user['id'], $songId]);
         $exists = $stmt->fetch();
 

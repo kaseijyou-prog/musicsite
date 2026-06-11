@@ -41,8 +41,10 @@ class AuthController
         $user = $this->userModel->findById($userId);
 
         AuthMiddleware::login($user);
+        $token = $this->generateToken($user);
 
         Response::success([
+            'token'    => $token,
             'id'       => $user['id'],
             'username' => $user['username'],
             'nickname' => $user['nickname'],
@@ -71,8 +73,10 @@ class AuthController
         }
 
         AuthMiddleware::login($user);
+        $token = $this->generateToken($user);
 
         Response::success([
+            'token'    => $token,
             'id'       => $user['id'],
             'username' => $user['username'],
             'nickname' => $user['nickname'],
@@ -95,7 +99,7 @@ class AuthController
      */
     public function me(): void
     {
-        $user = AuthMiddleware::check();
+        $user = $this->getUserFromRequest();
         $profile = $this->userModel->findById($user['id']);
         if (!$profile) {
             Response::error('用户不存在', 404);
@@ -114,7 +118,7 @@ class AuthController
      */
     public function updateProfile(): void
     {
-        $user = AuthMiddleware::check();
+        $user = $this->getUserFromRequest();
         $input = $this->getInput();
 
         $this->userModel->updateProfile($user['id'], $input);
@@ -133,7 +137,7 @@ class AuthController
      */
     public function changePassword(): void
     {
-        $user = AuthMiddleware::check();
+        $user = $this->getUserFromRequest();
         $input = $this->getInput();
 
         $currentPassword = $input['current_password'] ?? '';
@@ -153,6 +157,53 @@ class AuthController
 
         $this->userModel->changePassword($user['id'], $newPassword);
         Response::success(null, '密码修改成功');
+    }
+
+    private function generateToken(array $user): string
+    {
+        $secret = 'musicsite-secret-key-2024';
+        $data = $user['id'] . '|' . $user['username'] . '|' . $user['role'];
+        $sig = hash_hmac('sha256', $data, $secret);
+        return base64_encode($data) . '.' . $sig;
+    }
+
+    private function getUserFromRequest(): array
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (!empty($_SESSION['user_id'])) {
+            return [
+                'id'       => (int) $_SESSION['user_id'],
+                'username' => $_SESSION['username'],
+                'role'     => $_SESSION['role'],
+            ];
+        }
+        $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (preg_match('/^Bearer\s+(.+)$/i', $auth, $m)) {
+            $token = $m[1];
+            $user = $this->verifyToken($token);
+            if ($user) return $user;
+        }
+        Response::unauthorized();
+    }
+
+    private function verifyToken(string $token): ?array
+    {
+        $secret = 'musicsite-secret-key-2024';
+        $parts = explode('.', $token, 2);
+        if (count($parts) !== 2) return null;
+        $data = base64_decode($parts[0]);
+        $sig  = $parts[1];
+        $expected = hash_hmac('sha256', $data, $secret);
+        if (!hash_equals($expected, $sig)) return null;
+        $fields = explode('|', $data);
+        if (count($fields) !== 3) return null;
+        return [
+            'id'       => (int) $fields[0],
+            'username' => $fields[1],
+            'role'     => $fields[2],
+        ];
     }
 
     private function getInput(): array

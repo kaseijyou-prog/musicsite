@@ -102,6 +102,27 @@
         document.getElementById("miniProgress").style.width = pct + "%";
         document.getElementById("timeCurrent").textContent = fmt(audioEl.currentTime);
         document.getElementById("timeTotal").textContent = fmt(audioEl.duration || 0);
+        highlightLyric(audioEl.currentTime);
+    }
+
+    function highlightLyric(currentTime) {
+        var scroll = document.getElementById("lyricsScroll");
+        if (!scroll) return;
+        var lines = scroll.querySelectorAll(".lyric-line");
+        if (!lines.length) return;
+        var activeIdx = 0;
+        for (var i = 0; i < lines.length; i++) {
+            var t = parseFloat(lines[i].dataset.time);
+            if (!isNaN(t) && t <= currentTime) {
+                activeIdx = i;
+            }
+        }
+        lines.forEach(function(l){ l.classList.remove("active"); });
+        var activeEl = lines[activeIdx];
+        if (activeEl) {
+            activeEl.classList.add("active");
+            activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
     }
 
     function fmt(s) { if (!s || isNaN(s)) return "0:00"; var m = Math.floor(s / 60); var sec = Math.floor(s % 60); return m + ":" + (sec < 10 ? "0" : "") + sec; }
@@ -110,8 +131,8 @@
         var c = document.getElementById("lyricsScroll"); if (!c) return; c.innerHTML = "";
         if (!lrc) { c.innerHTML = "<p class=\"lyric-placeholder\">暂无歌词</p>"; return; }
         var lines = lrc.split("\n").map(function(l){
-            var m = l.match(/\[(\d+):(\d+)\.?(\d+)?\](.*)/);
-            if (!m) return null;
+            var m = l.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/);
+            if (!m || !m[4].trim()) return null;
             return { time: parseInt(m[1])*60+parseInt(m[2])+(parseInt(m[3]||0)/1000), text: m[4].trim() };
         }).filter(Boolean);
         if (!lines.length) { c.innerHTML = "<p class=\"lyric-placeholder\">暂无歌词</p>"; return; }
@@ -136,7 +157,7 @@
             "<div class=\"song-info\"><p class=\"song-title\">"+esc(song.title)+"</p><p class=\"song-artist\">"+esc(song.artist||"-")+"</p></div>" +
             "<div class=\"song-meta\"><span class=\"song-duration\">"+fmt(song.duration)+"</span>" +
             "<button class=\"song-fav-btn"+(song.is_favorite?" active":"")+"\" data-fav-id=\""+song.id+"\">" +
-            "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\""+(song.is_favorite?"currentColor":"none")+"\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z\"/></svg></button></div>";
+            "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\""+(song.is_favorite?"currentColor":"none")+"\" stroke=\"currentColor\" stroke-width=\"2\" style=\"pointer-events:none\"><path d=\"M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z\"/></svg></button></div>";
         div.addEventListener("click", function(e) {
             if (e.target.closest(".song-fav-btn")) { e.stopPropagation(); toggleFavorite(parseInt(e.target.closest(".song-fav-btn").dataset.favId)); return; }
             playSong(Object.assign({},song)); openFullPlayer();
@@ -258,11 +279,12 @@
     async function loadHistory() { var res = await api("/history"); if (res.code === 0) renderSongList(document.getElementById("historyList"), res.data?.list || []); }
 
     async function init() {
-        // Check auth - redirect to login if no valid token
         var token = localStorage.getItem("token");
         if (!token) { window.location.replace("/login.html"); return; }
-        var meRes = await api("/auth/me");
-        if (meRes.code !== 0) { localStorage.removeItem("token"); window.location.replace("/login.html"); return; }
+        try {
+            var meRes = await api("/auth/me");
+            if (meRes.code !== 0) { localStorage.removeItem("token"); window.location.replace("/login.html"); return; }
+        } catch(e) { console.error('Auth check failed:', e); }
 
         document.querySelectorAll(".tab").forEach(function(tab){tab.addEventListener("click",function(){switchTab(tab.dataset.tab)})});
         var avatarEl = document.getElementById("userAvatar");
@@ -272,10 +294,29 @@
         if (avatarSvg) avatarSvg.addEventListener("click", avatarClick);
 
         loadUserProfile();
-        await loadDiscover();
+        try { await loadDiscover(); } catch(e) { console.error(e); }
 
         document.getElementById("miniPlayBtn").addEventListener("click", togglePlay);
         document.getElementById("miniNextBtn").addEventListener("click", playNext);
+    function downloadSong() {
+        if (!currentSong || !currentSong.file_path) return;
+        var url = currentSong.file_path;
+        // 如果路径是相对路径，加上当前 origin
+        if (url.startsWith('/')) url = window.location.origin + url;
+        var filename = (currentSong.title || 'song') + '.mp3';
+        fetch(url).then(function(r){ return r.blob(); }).then(function(blob){
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        }).catch(function(){
+            // fallback: 直接打开链接
+            window.open(url, '_blank');
+        });
+    }
         document.getElementById("miniContent").addEventListener("click", openFullPlayer);
         document.getElementById("fullBack").addEventListener("click", closeFullPlayer);
         document.getElementById("fullPlayBtn").addEventListener("click", togglePlay);
@@ -283,6 +324,7 @@
         document.getElementById("nextBtn").addEventListener("click", playNext);
         document.getElementById("modeBtn").addEventListener("click", cyclePlayMode);
         document.getElementById("favBtn").addEventListener("click", function(){if(currentSong) toggleFavorite(currentSong.id)});
+        document.getElementById("downloadBtn").addEventListener("click", downloadSong);
         document.getElementById("progressBar").addEventListener("click", function(e){
             if (!audioEl || !audioEl.duration) return;
             var rect = e.currentTarget.getBoundingClientRect();

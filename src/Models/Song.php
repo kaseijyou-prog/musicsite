@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // src/Models/Song.php
 
 require_once __DIR__ . '/../Config/database.php';
@@ -51,7 +51,7 @@ class Song
         $favJoin   = $userId ? 'LEFT JOIN favorites f ON f.song_id = s.id AND f.user_id = ' . $userId : '';
 
         $sql = "SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path,
-                       s.duration, s.play_count, s.category_id, s.album_id, s.created_at,
+                       s.lyrics, s.duration, s.play_count, s.category_id, s.album_id, s.created_at,
                        c.name as category_name, a.name as album_name
                        {$favSelect}
                 FROM songs s
@@ -78,7 +78,7 @@ class Song
     public function getHot(int $limit = 20): array
     {
         $stmt = $this->db->prepare('SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path, s.duration, s.play_count,
-                                     s.album_id, a.name as album_name
+                                     s.lyrics, s.album_id, a.name as album_name
                                      FROM songs s LEFT JOIN albums a ON s.album_id = a.id
                                      WHERE s.status = 1
                                      ORDER BY s.play_count DESC LIMIT ?');
@@ -92,7 +92,7 @@ class Song
     public function getLatest(int $limit = 20): array
     {
         $stmt = $this->db->prepare('SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path, s.duration, s.play_count,
-                                     s.album_id, a.name as album_name
+                                     s.lyrics, s.album_id, a.name as album_name
                                      FROM songs s LEFT JOIN albums a ON s.album_id = a.id
                                      WHERE s.status = 1
                                      ORDER BY s.created_at DESC LIMIT ?');
