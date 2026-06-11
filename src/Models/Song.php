@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // src/Models/Song.php
 
 require_once __DIR__ . '/../Config/database.php';
@@ -50,15 +50,16 @@ class Song
         $favSelect = $userId ? ', IF(f.song_id IS NOT NULL, 1, 0) as is_favorite' : ', 0 as is_favorite';
         $favJoin   = $userId ? 'LEFT JOIN favorites f ON f.song_id = s.id AND f.user_id = ' . $userId : '';
 
-        $sql = "SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path, 
-                       s.duration, s.play_count, s.category_id, s.created_at,
-                       c.name as category_name
+        $sql = "SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path,
+                       s.duration, s.play_count, s.category_id, s.album_id, s.created_at,
+                       c.name as category_name, a.name as album_name
                        {$favSelect}
-                FROM songs s 
-                LEFT JOIN categories c ON s.category_id = c.id 
+                FROM songs s
+                LEFT JOIN categories c ON s.category_id = c.id
+                LEFT JOIN albums a ON s.album_id = a.id
                 {$favJoin}
-                {$where} 
-                ORDER BY s.created_at DESC 
+                {$where}
+                ORDER BY s.created_at DESC
                 LIMIT {$limit} OFFSET {$offset}";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
@@ -76,9 +77,11 @@ class Song
      */
     public function getHot(int $limit = 20): array
     {
-        $stmt = $this->db->prepare('SELECT id, title, artist, album, cover_path, file_path, duration, play_count 
-                                     FROM songs WHERE status = 1 
-                                     ORDER BY play_count DESC LIMIT ?');
+        $stmt = $this->db->prepare('SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path, s.duration, s.play_count,
+                                     s.album_id, a.name as album_name
+                                     FROM songs s LEFT JOIN albums a ON s.album_id = a.id
+                                     WHERE s.status = 1
+                                     ORDER BY s.play_count DESC LIMIT ?');
         $stmt->execute([$limit]);
         return $stmt->fetchAll();
     }
@@ -88,9 +91,11 @@ class Song
      */
     public function getLatest(int $limit = 20): array
     {
-        $stmt = $this->db->prepare('SELECT id, title, artist, album, cover_path, file_path, duration, play_count 
-                                     FROM songs WHERE status = 1 
-                                     ORDER BY created_at DESC LIMIT ?');
+        $stmt = $this->db->prepare('SELECT s.id, s.title, s.artist, s.album, s.cover_path, s.file_path, s.duration, s.play_count,
+                                     s.album_id, a.name as album_name
+                                     FROM songs s LEFT JOIN albums a ON s.album_id = a.id
+                                     WHERE s.status = 1
+                                     ORDER BY s.created_at DESC LIMIT ?');
         $stmt->execute([$limit]);
         return $stmt->fetchAll();
     }
@@ -117,7 +122,7 @@ class Song
     {
         $fields = [];
         $params = [];
-        foreach (['title', 'artist', 'album', 'cover_path', 'file_path', 'duration', 'lyrics', 'category_id'] as $field) {
+        foreach (['title', 'artist', 'album', 'cover_path', 'file_path', 'duration', 'lyrics', 'category_id', 'album_id'] as $field) {
             if (array_key_exists($field, $data)) {
                 $fields[] = "{$field} = ?";
                 $params[] = $data[$field];

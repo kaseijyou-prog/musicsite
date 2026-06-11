@@ -4,6 +4,7 @@
 require_once __DIR__ . '/../Models/Song.php';
 require_once __DIR__ . '/../Models/User.php';
 require_once __DIR__ . '/../Models/Category.php';
+require_once __DIR__ . '/../Models/Album.php';
 require_once __DIR__ . '/../Middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../Helpers/Response.php';
 require_once __DIR__ . '/../Helpers/FileUpload.php';
@@ -13,12 +14,14 @@ class AdminController
     private Song $songModel;
     private User $userModel;
     private Category $categoryModel;
+    private Album $albumModel;
 
     public function __construct()
     {
         $this->songModel     = new Song();
         $this->userModel     = new User();
         $this->categoryModel = new Category();
+        $this->albumModel    = new Album();
     }
 
     // ==================== 歌曲管理 ====================
@@ -70,11 +73,20 @@ class AdminController
             $coverPath = $coverUploader->upload($_FILES['cover_file']);
         }
 
-        // 获取音频时长
-        $duration = $this->getAudioDuration(__DIR__ . '/../../public/' . $musicPath);
+        // 将上传路径转为 URL 相对路径（/uploads/xxx）
+        // 用正则提取，避免 realpath() 在不同环境返回不同路径
+        $musicUrl = $musicPath;
+        if (preg_match('#[/\\\\]uploads[/\\\\]music[/\\\\]([^/\\\\]+)$#', $musicPath, $m)) {
+            $musicUrl = '/uploads/music/' . $m[1];
+        }
+        if ($coverPath !== '/assets/images/default-cover.svg') {
+            if (preg_match('#[/\\\\]uploads[/\\\\]covers[/\\\\]([^/\\\\]+)$#', $coverPath, $m)) {
+                $coverPath = '/uploads/covers/' . $m[1];
+            }
+        }
 
-        // 将上传路径转为 URL 相对路径
-        $musicUrl = str_replace('\\', '/', str_replace(realpath(__DIR__ . '/../../public') . DIRECTORY_SEPARATOR, '/', $musicPath));
+        // 获取音频时长
+        $duration = $this->getAudioDuration($musicPath);
 
         $songId = $this->songModel->create([
             'title'       => $title,
@@ -208,6 +220,66 @@ class AdminController
         AuthMiddleware::admin();
         $this->categoryModel->delete($id);
         Response::success(null, '删除成功');
+    }
+
+    // ==================== 专辑管理 ====================
+
+    /**
+     * GET /api/admin/albums
+     */
+    public function albums(): void
+    {
+        AuthMiddleware::admin();
+        $result = $this->albumModel->getAll();
+        Response::success($result);
+    }
+
+    /**
+     * POST /api/admin/albums
+     */
+    public function createAlbum(): void
+    {
+        AuthMiddleware::admin();
+        $input = $this->getInput();
+        $name        = trim($input['name'] ?? '');
+        $description = trim($input['description'] ?? '');
+        $cover       = isset($input['cover']) ? trim($input['cover']) : null;
+
+        if (!$name) {
+            Response::error('请输入专辑名称');
+        }
+
+        $id = $this->albumModel->create($name, $description, $cover);
+        Response::success(['id' => $id], '专辑创建成功');
+    }
+
+    /**
+     * PUT /api/admin/albums/{id}
+     */
+    public function updateAlbum(int $id): void
+    {
+        AuthMiddleware::admin();
+        $input = $this->getInput();
+        $name        = trim($input['name'] ?? '');
+        $description = trim($input['description'] ?? '');
+        $cover       = isset($input['cover']) ? trim($input['cover']) : null;
+
+        if (!$name) {
+            Response::error('请输入专辑名称');
+        }
+
+        $this->albumModel->update($id, $name, $description, $cover);
+        Response::success(null, '专辑更新成功');
+    }
+
+    /**
+     * DELETE /api/admin/albums/{id}
+     */
+    public function deleteAlbum(int $id): void
+    {
+        AuthMiddleware::admin();
+        $this->albumModel->delete($id);
+        Response::success(null, '专辑删除成功');
     }
 
     // ==================== 统计 ====================

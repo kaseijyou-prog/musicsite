@@ -27,6 +27,7 @@
         <h2>🎵 MusicSite</h2>
         <div class="si active" data-tab="dashboard">仪表盘</div>
         <div class="si" data-tab="songs">歌曲管理</div>
+        <div class="si" data-tab="albums">专辑管理</div>
         <div class="si" data-tab="users">用户管理</div>
         <div class="si" data-tab="categories">分类管理</div>
         <div class="si" onclick="location.href='/'">返回首页</div>
@@ -45,6 +46,10 @@
             <div class="p"><div class="ph"><span class="p-t">用户列表</span><button class="btn bp" onclick="showUserModal()">+ 新建用户</button></div>
             <div class="sb2"><input type="text" id="userSearch" placeholder="搜索用户..." oninput="dsu()"></div>
             <table><thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="usersTable"></tbody></table>
+        </div></div>
+        <div class="tc" id="tab-albums"><h1 class="pt">专辑管理</h1>
+            <div class="p"><div class="ph"><span class="p-t">专辑列表</span><button class="btn bp" onclick="showAlbumModal()">+ 新建专辑</button></div>
+            <table><thead><tr><th>ID</th><th>名称</th><th>描述</th><th>操作</th></tr></thead><tbody id="albumsTable"></tbody></table>
         </div></div>
         <div class="tc" id="tab-categories"><h1 class="pt">分类管理</h1>
             <div class="p"><div class="ph"><span class="p-t">分类列表</span><button class="btn bp" onclick="showCatModal()">+ 新建分类</button></div>
@@ -73,15 +78,38 @@
         <div class="fg"><label>角色</label><select name="role"><option value="user">用户</option><option value="admin">管理员</option></select></div>
         <div class="fa"><button type="button" class="btn" onclick="cm('userModal')">取消</button><button type="submit" class="btn bp">创建</button></div>
     </form></div></div>
+    <div class="mb" id="albumModal"><div class="mbx"><h3>新建专辑</h3><form id="albumForm">
+        <div class="fg"><label>专辑名称 *</label><input type="text" name="name" required></div>
+        <div class="fg"><label>描述</label><textarea name="description" rows="3"></textarea></div>
+        <div class="fa"><button type="button" class="btn" onclick="cm('albumModal')">取消</button><button type="submit" class="btn bp">创建</button></div>
+    </form></div></div>
+    <div class="mb" id="songEditModal"><div class="mbx"><h3>编辑歌曲</h3><form id="songEditForm">
+        <input type="hidden" name="id">
+        <div class="fg"><label>歌曲名称 *</label><input type="text" name="title" required></div>
+        <div class="fg"><label>艺术家</label><input type="text" name="artist"></div>
+        <div class="fg"><label>专辑</label><input type="text" name="album"></div>
+        <div class="fg"><label>歌词</label><textarea name="lyrics" rows="4"></textarea></div>
+        <div class="fa"><button type="button" class="btn" onclick="cm('songEditModal')">取消</button><button type="submit" class="btn bp">保存</button></div>
+    </form></div></div>
 <script>
 var API="/api",token=localStorage.getItem("token")||"";
 async function api(p,o){o=o||{};var r=await fetch(API+p,{headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},method:o.method||"GET",body:o.body?JSON.stringify(o.body):null});return r.json()}
 function toast(m){var d=document.createElement("div");d.style.cssText="position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:#1a1a2e;border:1px solid #2a2a44;color:#e8e8f0;padding:10px 24px;border-radius:24px;font-size:14px;z-index:999";d.textContent=m;document.body.appendChild(d);setTimeout(function(){d.remove()},2000)}
 document.querySelectorAll(".si[data-tab]").forEach(function(i){i.addEventListener("click",function(){document.querySelectorAll(".si").forEach(function(x){x.classList.remove("active")});i.classList.add("active");document.querySelectorAll(".tc").forEach(function(t){t.classList.remove("active")});document.getElementById("tab-"+i.dataset.tab).classList.add("active")})});
 async function ld(){var r=await api("/admin/stats");if(r.code===0){var s=r.data;document.getElementById("statsGrid").innerHTML="<div class=\"sc\"><div class=\"n\">"+s.total_songs+"</div><div class=\"l\">歌曲总数</div></div><div class=\"sc\"><div class=\"n\">"+s.total_users+"</div><div class=\"l\">用户总数</div></div><div class=\"sc\"><div class=\"n\">"+s.total_plays+"</div><div class=\"l\">总播放量</div></div><div class=\"sc\"><div class=\"n\">"+s.today_plays+"</div><div class=\"l\">今日播放</div></div>"}var sr=await api("/admin/songs?limit=5");if(sr.code===0){document.getElementById("recentSongs").innerHTML=(sr.data?.list||[]).map(function(s){return"<tr><td>"+s.title+"</td><td>"+(s.artist||"-")+"</td><td>"+(s.category_name||"-")+"</td><td>"+new Date(s.created_at).toLocaleString("zh-CN")+"</td></tr>"}).join("")||"<tr><td colspan=\"4\" class=\"empty\">暂无数据</td></tr>"}}
-async function ls(p){p=p||1;var kw=document.getElementById("songSearch")?.value||"";var r=await api("/admin/songs?page="+p+"&keyword="+encodeURIComponent(kw));if(r.code===0){document.getElementById("songsTable").innerHTML=(r.data?.list||[]).map(function(s){return"<tr><td>"+s.id+"</td><td>"+s.title+"</td><td>"+(s.artist||"-")+"</td><td>"+(s.category_name||"-")+"</td><td>"+(s.play_count||0)+"</td><td><button class=\"btn bd bs\" onclick=\"ds("+s.id+")\">删除</button></td></tr>"}).join("")||"<tr><td colspan=\"6\" class=\"empty\">暂无歌曲</td></tr>"}}
+async function ls(p){p=p||1;var kw=document.getElementById("songSearch")?.value||"";var r=await api("/admin/songs?page="+p+"&keyword="+encodeURIComponent(kw));if(r.code===0){document.getElementById("songsTable").innerHTML=(r.data?.list||[]).map(function(s){return"<tr><td>"+s.id+"</td><td>"+s.title+"</td><td>"+(s.artist||"-")+"</td><td>"+(s.category_name||"-")+"</td><td>"+(s.play_count||0)+'</td><td><button class="btn bp bs" onclick="editSong('+s.id+',\''+s.title.replace(/'/g,"\\'")+'\',\''+(s.artist||"").replace(/'/g,"\\'")+'\',\''+(s.album||"").replace(/'/g,"\\'")+'\',\''+(s.lyrics||"").replace(/'/g,"\\'")+'\')">编辑</button> <button class="btn bd bs" onclick="ds('+s.id+')">删除</button></td></tr>'}).join("")||"<tr><td colspan=\"6\" class=\"empty\">暂无歌曲</td></tr>"}}
 async function lu(){var kw=document.getElementById("userSearch")?.value||"";var r=await api("/admin/users?keyword="+encodeURIComponent(kw));if(r.code===0){document.getElementById("usersTable").innerHTML=(r.data?.list||[]).map(function(u){var rl=u.role==="admin"?"管理员":"用户";var sl=u.status?"正常":"禁用";var bl=u.status?"#e17055":"#00b894";var tl=u.status?"禁用":"启用";return"<tr><td>"+u.id+"</td><td>"+u.username+"</td><td>"+(u.nickname||"-")+"</td><td>"+rl+"</td><td>"+sl+"</td><td>"+new Date(u.created_at).toLocaleString("zh-CN")+"</td><td><button class=\"btn bs\" style=\"background:"+bl+";color:#fff\" onclick=\"tu("+u.id+")\">"+tl+"</button></td></tr>"}).join("")||"<tr><td colspan=\"7\" class=\"empty\">暂无用户</td></tr>"}}
 async function lc(){var r=await api("/categories");if(r.code===0){document.getElementById("categoriesTable").innerHTML=(r.data||[]).map(function(c){return"<tr><td>"+c.id+"</td><td>"+c.name+"</td><td>"+c.sort_order+"</td><td><button class=\"btn bd bs\" onclick=\"dc("+c.id+")\">删除</button></td></tr>"}).join("")||"<tr><td colspan=\"4\" class=\"empty\">暂无分类</td></tr>";var s=document.getElementById("uc");if(s)s.innerHTML="<option value=\"\">无分类</option>"+(r.data||[]).map(function(c){return"<option value=\""+c.id+"\">"+c.name+"</option>"}).join("")}}
+async function la(){var r=await api("/admin/albums");if(r.code===0){document.getElementById("albumsTable").innerHTML=(r.data||[]).map(function(a){return"<tr><td>"+a.id+"</td><td>"+a.name+"</td><td>"+(a.description||"-")+'</td><td><button class=\"btn bp bs\" onclick="editAlbum('+a.id+',\''+a.name.replace(/'/g,"\\'")+'\',\''+(a.description||"").replace(/'/g,"\\'")+'\')">编辑</button> <button class="btn bd bs" onclick="delAlbum('+a.id+')">删除</button></td></tr>'}).join("")||"<tr><td colspan=\"4\" class=\"empty\">暂无专辑</td></tr>"}}
+document.getElementById("albumForm").addEventListener("submit",async function(e){e.preventDefault();var f=e.target;var r=await api("/admin/albums",{method:"POST",body:{name:f.name.value.trim(),description:f.description.value.trim()}});if(r.code===0){toast("专辑创建成功");cm("albumModal");la()}else toast(r.message)});
+document.getElementById("songEditForm").addEventListener("submit",async function(e){e.preventDefault();var f=e.target;var id=f.querySelector('[name="id"]').value;var r=await api("/admin/songs/"+id,{method:"PUT",body:{title:f.querySelector('[name="title"]').value.trim(),artist:f.querySelector('[name="artist"]').value.trim(),album:f.querySelector('[name="album"]').value.trim(),lyrics:f.querySelector('[name="lyrics"]').value.trim()}});if(r.code===0){toast("歌曲更新成功");cm("songEditModal");ls()}else toast(r.message)});
+function showUploadModal(){document.getElementById("uploadModal").classList.add("active")}
+function showCatModal(){document.getElementById("categoryModal").classList.add("active")}
+function showUserModal(){document.getElementById("userModal").classList.add("active")}
+function showAlbumModal(){document.getElementById("albumModal").classList.add("active")}
+function editAlbum(id,name,desc){document.getElementById("albumModal").querySelector('[name="name"]').value=name;document.getElementById("albumModal").querySelector('[name="description"]').value=desc;document.getElementById("albumModal").classList.add("active")}
+function editSong(id,title,artist,album,lyrics){var f=document.getElementById("songEditForm");f.querySelector('[name="id"]').value=id;f.querySelector('[name="title"]').value=title;f.querySelector('[name="artist"]').value=artist||"";f.querySelector('[name="album"]').value=album||"";f.querySelector('[name="lyrics"]').value=lyrics||"";document.getElementById("songEditModal").classList.add("active")}
+async function delAlbum(id){if(!confirm("确定删除专辑？"))return;var r=await api("/admin/albums/"+id,{method:"DELETE"});if(r.code===0){toast("专辑删除成功");la()}else toast(r.message)}
 document.getElementById("uf").addEventListener("submit",async function(e){e.preventDefault();var f=new FormData;f.append("title",e.target.title.value);f.append("artist",e.target.artist.value);f.append("album",e.target.album.value);f.append("category_id",e.target.category_id.value);f.append("lyrics",e.target.lyrics.value);if(e.target.music_file.files[0])f.append("music_file",e.target.music_file.files[0]);if(e.target.cover_file.files[0])f.append("cover_file",e.target.cover_file.files[0]);var r=await fetch(API+"/admin/songs/upload",{method:"POST",headers:{Authorization:"Bearer "+token},body:f});var d=await r.json();if(d.code===0){toast("上传成功");cm("uploadModal");ls();ld()}else toast(d.message)});
 document.getElementById("cf").addEventListener("submit",async function(e){e.preventDefault();var f=e.target;var r=await api("/admin/categories",{method:"POST",body:JSON.stringify({name:f.name.value,sort_order:parseInt(f.sort_order.value)||0})});if(r.code===0){toast("创建成功");cm("categoryModal");lc()}else toast(r.message)});
 async function ds(id){if(!confirm("确定删除歌曲？"))return;var r=await api("/admin/songs/"+id,{method:"DELETE"});if(r.code===0){toast("删除成功");ls();ld()}else toast(r.message)}
@@ -95,7 +123,7 @@ function cm(id){document.getElementById(id).classList.remove("active")}
 document.querySelectorAll(".mb").forEach(function(m){m.addEventListener("click",function(e){if(e.target===m)m.classList.remove("active")})});
 var st;function dss(){clearTimeout(st);st=setTimeout(function(){ls()},400)}
 var ut;function dsu(){clearTimeout(ut);ut=setTimeout(function(){lu()},400)}
-ld();ls();lu();lc();
+ld();ls();lu();lc();la();
 </script>
 </body>
 </html>

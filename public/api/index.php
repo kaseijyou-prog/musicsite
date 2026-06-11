@@ -21,12 +21,14 @@ $routes = [
     'GET categories'=>[SongController::class,'categories'],'GET favorites'=>[SongController::class,'favorites'],'GET history'=>[SongController::class,'history'],
     'GET admin/stats'=>[AdminController::class,'stats'],'GET admin/songs'=>[AdminController::class,'songs'],'POST admin/songs/upload'=>[AdminController::class,'uploadSong'],
     'POST admin/users'=>[AdminController::class,'createUser'],'PUT admin/categories'=>[AdminController::class,'createCategory'],'GET admin/users'=>[AdminController::class,'users'],
+    'GET admin/albums'=>[AdminController::class,'albums'],'POST admin/albums'=>[AdminController::class,'createAlbum'],
 ];
 $dynamicRoutes = [
     ['pattern'=>'#^songs/(\d+)$#','GET'=>[SongController::class,'show']],['pattern'=>'#^songs/(\d+)/play$#','GET'=>[SongController::class,'play']],
     ['pattern'=>'#^favorite/(\d+)$#','POST'=>[SongController::class,'favorite']],['pattern'=>'#^admin/songs/(\d+)$#','PUT'=>[AdminController::class,'updateSong']],
     ['pattern'=>'#^admin/songs/(\d+)$#','DELETE'=>[AdminController::class,'deleteSong']],['pattern'=>'#^admin/users/(\d+)/toggle$#','PUT'=>[AdminController::class,'toggleUser']],
     ['pattern'=>'#^admin/categories/(\d+)$#','PUT'=>[AdminController::class,'updateCategory']],['pattern'=>'#^admin/categories/(\d+)$#','DELETE'=>[AdminController::class,'deleteCategory']],
+    ['pattern'=>'#^admin/albums/(\d+)$#','PUT'=>[AdminController::class,'updateAlbum']],['pattern'=>'#^admin/albums/(\d+)$#','DELETE'=>[AdminController::class,'deleteAlbum']],
 ];
 $routeKey = "{$method} {$uri}";
 if (isset($routes[$routeKey])) { [$class,$action]=$routes[$routeKey]; $ctrl=new $class(); $ctrl->$action(); exit; }
